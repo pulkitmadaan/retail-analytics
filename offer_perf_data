@@ -1,0 +1,41 @@
+library(RODBC)
+hive_connect <- odbcConnect("Hive_DB")
+
+offer_perf <- 
+"select
+order_item_product_id,
+offer_format,
+offer_flag,
+offer_classification,
+month,
+date_dim_key,
+
+analytic_business_unit,
+analytic_super_category,
+analytic_category,
+brand,
+
+sum(gross_sales_per_offer) as gmv,
+sum(gross_units_per_offer) as units,
+sum(rto_amount_per_offer) as rto_gmv,
+sum(rto_units_per_offer) as rto_units,
+sum(rvp_amount_per_offer) as rvp_gmv,
+sum(rvp_units_per_offer) as rvp_units
+
+from bigfoot_external_neo.cp_santa__offer_sales_cancellations_hive_fact
+where is_first_party_seller=1
+group by 
+order_item_product_id,
+offer_format,
+offer_flag,
+offer_classification,
+month,
+date_dim_key,
+
+analytic_business_unit,
+analytic_super_category,
+analytic_category,
+brand;"
+
+offer_perf_data <- sqlQuery(hive_connect,offer_perf)
+write.csv(offer_perf_data, 'offer_perf_data.csv')
