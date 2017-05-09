@@ -1,4 +1,11 @@
-SELECT
+
+library(RODBC)
+library(dplyr)
+
+# Connecting with Hive
+hive_connect <- odbcConnect("Hive_DB")
+
+returns_query<- "SELECT
 d.full_date as full_date,
 pd.analytic_business_unit as bu,
 s1.order_item_unit_status as status,
@@ -13,6 +20,7 @@ sum(rvp.rvp_qty) as rvp_qty,
 sum(rvp.rvp_val) as rvp_val,
 sum(rvp.order_qty) as rvp_order_qty,
 sum(rvp.order_val) as rvp_order_val
+
 
 FROM bigfoot_external_neo.scp_oms__order_item_unit_s1_fact s1
 
@@ -41,5 +49,45 @@ s1.order_item_unit_status,
 geo.city,
 geo.state,
 geo.zone,
-geo.city_tier
+geo.city_tier"
 
+returns_data_2 <- sqlQuery(hive_connect,returns_query)
+
+returns_data_2[is.na(returns_data_2)] <- 0
+ret_data <- returns_data_2 %>%
+  mutate(sla=round(avg_sla))
+
+ret_summary_2 <- returns_mar %>%
+  mutate(pct=sum(rto_units)/sum(total_units))
+             
+returns_mar <- ret_data %>%
+  mutate(cancelled_qty=(ifelse(status=='cancelled',units,0)), 
+         total_qty=(ifelse(status!='cancelled',units,0)),
+         rto_qty=(ifelse(status=='returned',(units-rvp_qty),0)),
+         cancelled_val=(ifelse(status=='cancelled',gmv,0)), 
+         total_val=(ifelse(status!='cancelled',gmv,0)),
+         rto_val=(ifelse(status=='returned',(gmv-rvp_val),0))) %>%
+  group_by(bu,city_tier,sla) %>%
+  summarise(total_units=sum(total_qty),cancelled_units=sum(cancelled_qty),
+            rto_units=sum(rto_qty),rvp_units=sum(rvp_qty),
+            total_gmv=sum(total_val),cancelled_gmv=sum(cancelled_val),
+            rto_gmv=sum(rto_val),rvp_gmv=sum(rvp_val))
+
+returns_mar_2 <- returns_mar %>%
+  mutate(total_ret_gmv=cancelled_gmv+rto_gmv+rvp_gmv)
+write.csv(returns_mar,'returns_march.csv')
+
+library(plyr)
+models <- dlply(returns_mar_2, c("city_tier","bu"), function(returns_mar_2) 
+  lm(total_ret_gmv ~ sla, data = returns_mar_2))
+
+# Apply coef to each model and return a data frame
+ret_cancel_model <- ldply(models, coef)
+
+write.csv(ret_cancel_model, 'ret_model.csv')
+
+conversion <- read.csv('conversion_sla.csv')
+cvr <- conversion %>%
+  group_by(analytical_bu,city_tier) %>%
+  summarise(avg_sla=sum(sla*unit)/sum(unit))
+write.csv(cvr,'cvr_sla.csv')
