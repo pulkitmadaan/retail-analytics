@@ -2,25 +2,32 @@ SELECT
 d.full_date as full_date,
 pd.analytic_business_unit as bu,
 s1.order_item_unit_status as status,
-geo.city,
-geo.state,
-geo.zone,
-geo.city_tier,
+geo.city as city,
+geo.state as state,
+geo.zone as zone,
+geo.city_tier as city_tier,
 sum(s1.order_item_unit_quantity) as units,
 sum(s1.order_item_unit_final_sales_amount) as gmv,
-avg(s1.order_item_unit_sla) as avg_sla
+(sum(s1.order_item_unit_sla*s1.order_item_unit_quantity)/sum(s1.order_item_unit_quantity)) as avg_sla,
+sum(rvp.rvp_qty) as rvp_qty,
+sum(rvp.rvp_val) as rvp_val,
+sum(rvp.order_qty) as rvp_order_qty,
+sum(rvp.order_val) as rvp_order_val
 
 FROM bigfoot_external_neo.scp_oms__order_item_unit_s1_fact s1
+
 LEFT JOIN bigfoot_external_neo.sp_product__product_categorization_hive_dim pd
 ON pd.product_categorization_hive_dim_key = s1.order_item_product_id_key
 LEFT JOIN bigfoot_external_neo.scp_oms__date_dim_fact d
 ON s1.order_item_approve_max_date_key = d.date_dim_key
 LEFT JOIN bigfoot_external_neo.scp_ekl__logistics_geo_hive_dim geo 
 ON s1.order_shipping_address_pincode_key = geo.logistics_geo_hive_dim_key
-
+LEFT JOIN bigfoot_external_neo.scp_rrr__rvp_hive_fact rvp
+ON s1.order_item_id=rvp.order_item_id
 WHERE
-d.date_dim_key = 20170325 
-and s1.order_item_type = 'physical' 
+d.month = 3 
+and d.year=2017
+and s1.order_item_type = 'physical'
 and s1.order_item_unit_status not in ('created','on_hold')
 and s1.order_item_is_replacement=0
 and s1.order_item_is_exchange=0
