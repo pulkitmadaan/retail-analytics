@@ -23,7 +23,7 @@ sum(rvp_amount_per_offer) as rvp_gmv,
 sum(rvp_units_per_offer) as rvp_units
 
 from bigfoot_external_neo.cp_santa__offer_sales_cancellations_hive_fact
-where is_first_party_seller=1
+where is_first_party_seller=1 and week_num_in_year=18
 group by 
 order_item_product_id,
 offer_format,
@@ -38,4 +38,13 @@ analytic_category,
 brand;"
 
 offer_perf_data <- sqlQuery(hive_connect,offer_perf)
-write.csv(offer_perf_data, 'offer_perf_data.csv')
+write.csv(offer_perf_data, 'offer_perf_data_08.05.17.csv')
+
+
+# Subsetting data if needed
+offer_perf_sub <- offer_perf_data %>%
+  filter(date_dim_key>=20170410)
+
+# checking distinct dates if needed
+dist_dates <- as.data.frame(unique(offer_perf_sub$date_dim_key)) %>%
+  arrange()
