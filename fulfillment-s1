@@ -1,0 +1,67 @@
+SELECT 
+ff.product_id_key as product_key,
+ff.fulfill_item_service_profile as service_profile,
+ff.fulfill_item_unit_shipment_movement_type as shipment_movement_type,
+ff.fulfill_item_unit_new_shipment_movement_type as new_shipment_movement_type,
+ff.fulfill_item_unit_region as source_id,
+d.full_date as sales_date,
+d.week_num_in_year as week,
+d.month_name as month,
+count(distinct ff.fulfill_item_unit_id) as sales,
+sum (s1.order_item_unit_final_sales_amount) as revenue,
+case when (is_first_party_seller=1) then 'Alpha'  else 'Non-Alpha' END as seller_type,
+geo.zone as dest_zone,
+geo.pincode as dest_pincode,
+source.zone as source_zone,
+p.product_id as product_id,
+p.analytic_vertical as vertical,
+p.analytic_sub_category as sub_category,
+p.analytic_category as category,
+p.analytic_super_category as super_category,
+p.analytic_business_unit as bu,
+ff.fulfill_item_unit_status_modified as unit_status,
+p.brand as brand,
+p.title as product_title
+from bigfoot_external_neo.scp_fulfillment__fulfillment_unit_hive_fact ff
+left join bigfoot_external_neo.sp_product__product_categorization_hive_dim p
+on ff.product_id_key = p.product_categorization_hive_dim_key
+
+left outer join bigfoot_external_neo.sp_seller__seller_hive_dim seller
+on seller.seller_hive_dim_key = ff.seller_id_key
+
+left outer join bigfoot_external_neo.scp_ekl__logistics_geo_hive_dim geo
+on geo.logistics_geo_hive_dim_key = ff.fulfill_item_unit_destination_pincode_key
+
+left outer join bigfoot_external_neo.scp_oms__order_item_unit_s1_fact s1
+on s1.order_item_id	= ff.order_item_id and s1.order_item_unit_shipment_id = ff.shipment_merchant_reference_id
+
+left join bigfoot_common.planning_asset_pincode_mapping source
+on ff.fulfill_item_unit_region = source.asset
+
+left join bigfoot_external_neo.scp_oms__date_dim_fact d
+on ff.fulfill_item_unit_reserve_actual_date_key = d.date_dim_key
+
+where fulfill_item_unit_status_modified not in ('warehouse_cancellation_requested','customer_cancelled','procurement_cancellation_requested','seller_cancelled')
+and ff.fulfill_item_unit_reserve_actual_date_key>='20170326'
+group by
+ff.product_id_key,
+ff.fulfill_item_service_profile,
+ff.fulfill_item_unit_shipment_movement_type,
+ff.fulfill_item_unit_new_shipment_movement_type,
+ff.fulfill_item_unit_region,
+ff.fulfill_item_unit_status_modified,
+d.full_date,
+d.week_num_in_year,
+d.month_name,
+case when (is_first_party_seller=1) then 'Aplha'  else 'Non-Alpha' END,
+geo.zone,
+geo.pincode,
+source.zone,
+p.product_id,
+p.analytic_vertical,
+p.analytic_sub_category,
+p.analytic_category,
+p.analytic_super_category,
+p.analytic_business_unit,
+p.brand,
+p.title
