@@ -10,6 +10,7 @@ library(RODBC)
 library(scales)
 library(lubridate)
 # library(reshape)
+# Making some random changes to test git 
 
 hive_connect <- odbcConnect("Hive_DB")
 proc_connect<-  odbcConnect("Proc_b2b_flo")
