@@ -1,0 +1,36 @@
+select 
+pd.analytic_business_unit as business_unit, 
+pd.analytic_super_category as super_category, 
+pd.analytic_category as category, 
+pd.analytic_vertical as analytical_vertical, 
+pd.cms_vertical as cms_vertical,
+s1.order_item_service_profile as service_profile, 
+s1.order_item_product_id as product_id, 
+d.week_num_in_year as week_number,  
+d.month as month,
+sum(s1.order_item_unit_quantity) AS units,
+sum(s1.order_item_unit_final_sales_amount) as gmv,
+sum(s1.order_item_unit_quantity*s1.order_item_selling_price) as fsp_sales
+from bigfoot_external_neo.scp_oms__order_item_unit_s1_365_fact s1	 
+left join bigfoot_external_neo.sp_product__product_categorization_hive_dim pd 
+on pd.product_categorization_hive_dim_key = s1.order_item_product_id_key
+left join bigfoot_external_neo.scp_oms__date_dim_fact d on 
+d.date_dim_key = s1.order_item_approve_date_key
+left outer join bigfoot_external_neo.sp_seller__seller_hive_dim seller
+on seller.seller_hive_dim_key = s1.order_item_seller_id_key
+where s1.order_item_approve_date_key >= 20170301  and
+s1.order_item_approve_date_key < 20170901  and
+-- s1.order_item_seller_id in ('bd91df39671142ca',	'c82e1fb314f34969',	'd591418b408940a0',	'f1d25968ecc94909',	'f6d15b4a4f304426',	'fipl',	'wsr')
+seller.is_first_party_seller=1
+AND s1.order_item_category_id NOT IN (21651,21726)
+AND s1.order_item_is_pre_order=0
+AND s1.order_item_is_back_order=0
+AND s1.order_item_unit_status NOT IN ('created','cancelled','on_hold')
+AND s1.order_item_is_exchange=0
+AND s1.order_item_is_replacement=0
+AND s1.order_item_is_duplicate=0
+AND s1.order_item_is_freebie=0     
+AND upper(s1.order_item_type) = 'PHYSICAL'
+group by  pd.analytic_business_unit , pd.analytic_super_category, pd.analytic_category , 
+pd.analytic_vertical , pd.cms_vertical ,
+s1.order_item_service_profile , s1.order_item_product_id , d.week_num_in_year, d.month
